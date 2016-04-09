@@ -2,10 +2,14 @@
 #include<avr/interrupt.h>
 #include <stdlib.h>
 
+#include<LiquidCrystal.h>
+LiquidCrystal lcd(12, 11, 5, 4, 3, 8);
+
 float rpm=150;int count=0;
 int clock_ms=0;
 float time0 = 0, time1 = 0;
 int overf = 0;
+int x = 93;
 
 void usart_init(void)
 
@@ -37,16 +41,19 @@ int main(void)
   
   //unsigned char ch;
   
+  lcd.begin(16, 2);
+  lcd.clear();
+  
   DDRC|=0b00000000;
   DDRD|=0b11000000;
   PORTD|=0b01000000;
   DDRB|=0b00000010;
   
-  Serial.begin(9600);
+  //Serial.begin(9600);
   
   //TCCR1B=(1<<WGM12)|(1<<CS11)|(1<<CS10);
-  TCCR0A|=(1<<WGM01);
-  TCCR0B|=(1<<CS01)|(1<<CS00);
+  TCCR0A|=(1<<WGM01);//initialize timer 0 in CTC
+  TCCR0B|=(1<<CS01)|(1<<CS00);//pre-scale 64
   
   TCCR1A |= (1<<COM1A1)|(1<<WGM10);
   TCCR1B |= (1<<CS10) | (1<<WGM12);
@@ -72,7 +79,7 @@ int main(void)
   ISR(TIMER0_COMPA_vect)
   {
     clock_ms++;
-    if(clock_ms%1000==0) {Serial.print("Second is"); Serial.println(clock_ms/1000);} 
+    //if(clock_ms%1000==0) {Serial.print("Second is"); Serial.println(clock_ms/1000);} 
     if(clock_ms == 65535) {overf++; clock_ms=0;}
     
   }
@@ -99,20 +106,36 @@ int main(void)
     else if(count==2)
     {
      time1 = clock_ms;
-     Serial.print(time0);
-     Serial.print("\t");
-     Serial.println(time1);
+     //Serial.print(time0);
+     //Serial.print("\t");
+     //Serial.println(time1);
      float time = time1+200 - time0;
       rpm = 1000*(60 / time);
       
       count=0;
       overf=0;
       clock_ms=0;
-      Serial.print("RPM is ");
-      Serial.println(rpm);
+      //Serial.print("RPM is ");
+      //Serial.println(rpm);
      //Serial.println(rpm);
-     /*
-      int temp = rpm;
+     
+     if(rpm<=x-3 && rpm>=x+3)
+     {
+      //do nothing to OCR1A 
+     }
+     else if(rpm>x+3)
+     {
+       if(OCR1A>=5) OCR1A-=5;
+     }
+     else if(rpm<x-3)
+     {
+      if(OCR1A<=250) OCR1A+=5; 
+     }
+     
+     lcd.clear();
+   lcd.display();
+     
+      int temp = int(rpm);
     char sen[4] = {0};
     int i=0;
     if(rpm==0) usart_send(48);
@@ -125,10 +148,13 @@ int main(void)
     }
     int len = strlen(sen);
       for(i=len - 1;i>=0;i--)
+      {
          usart_send(sen[i]);
+         lcd.write(sen[i]);
+      }
     } 
      usart_send('\n');
-   */
+   
      
      //ch = rpm;
     // usart_send(char(rpm));
